@@ -1,0 +1,219 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered researcher, student, or administrator profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "institution": { "type": "string", "maxLength": 200 },
+        "country": { "type": "string", "maxLength": 100 },
+        "researchInterest": { "type": "string", "maxLength": 200 },
+        "userCategory": {
+          "type": "string",
+          "enum": ["Student", "Research Scholar", "Environmental Scientist", "Researcher", "General User"]
+        },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "accountStatus": { "type": "string", "enum": ["active", "deactivated"] },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "notificationsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "institution", "country", "researchInterest", "userCategory", "role", "accountStatus", "notificationsEnabled", "createdAt"]
+    },
+    "AdminGrant": {
+      "title": "AdminGrant",
+      "description": "Server-verified administrator privilege grant record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "grantedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "grantedBy", "createdAt"]
+    },
+    "Dataset": {
+      "title": "Dataset",
+      "description": "Environmental DNA dataset metadata linked to Supabase Storage.",
+      "type": "object",
+      "properties": {
+        "datasetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sampleId": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "fileFormat": { "type": "string", "enum": ["FASTA", "FASTQ", "CSV", "TSV", "TXT"] },
+        "fileSizeBytes": { "type": "integer" },
+        "sequenceCount": { "type": "integer" },
+        "sampleType": { "type": "string", "enum": ["Freshwater", "Marine Water", "Soil", "Sediment", "Air", "Other"] },
+        "collectionLocation": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "collectionDate": { "type": "string", "maxLength": 40 },
+        "environmentalDescription": { "type": "string", "maxLength": 1000 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "storagePath": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "supabaseDatasetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "previewSnippet": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["uploaded", "processing", "analysed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["datasetId", "userId", "datasetName", "sampleId", "fileName", "fileFormat", "fileSizeBytes", "sequenceCount", "sampleType", "collectionLocation", "collectionDate", "storagePath", "supabaseDatasetId", "status", "createdAt"]
+    },
+    "Analysis": {
+      "title": "Analysis",
+      "description": "eDNA bioinformatics analysis job record.",
+      "type": "object",
+      "properties": {
+        "analysisId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "analysisType": {
+          "type": "string",
+          "enum": [
+            "Taxonomic Identification",
+            "Species Diversity Assessment",
+            "Taxonomic Composition Analysis",
+            "Species Richness Analysis",
+            "Biodiversity Comparison",
+            "Sequence Quality Assessment"
+          ]
+        },
+        "referenceDatabase": { "type": "string", "enum": ["NCBI BLAST / Taxonomy", "SILVA rRNA", "MIDORI Mitochondrial", "Multi-Reference"] },
+        "minSimilarity": { "type": "number" },
+        "maxEValue": { "type": "string", "maxLength": 32 },
+        "minQueryCoverage": { "type": "number" },
+        "pipelineMode": { "type": "string", "enum": ["reference-pipeline", "demonstration-mode"] },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "failed"] },
+        "progress": { "type": "integer" },
+        "resultId": { "type": "string", "maxLength": 128 },
+        "errorMessage": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["analysisId", "datasetId", "userId", "datasetName", "analysisType", "referenceDatabase", "minSimilarity", "maxEValue", "minQueryCoverage", "pipelineMode", "status", "progress", "createdAt"]
+    },
+    "AnalysisResult": {
+      "title": "AnalysisResult",
+      "description": "Completed taxonomic identifications and biodiversity indices for an analysis.",
+      "type": "object",
+      "properties": {
+        "resultId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "analysisId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetName": { "type": "string", "maxLength": 160 },
+        "analysisType": { "type": "string", "maxLength": 100 },
+        "pipelineMode": { "type": "string", "enum": ["reference-pipeline", "demonstration-mode"] },
+        "referenceDatabase": { "type": "string", "maxLength": 100 },
+        "disclaimer": { "type": "string", "maxLength": 800 },
+        "speciesRichness": { "type": "integer" },
+        "shannonIndex": { "type": "number" },
+        "simpsonIndex": { "type": "number" },
+        "pielouEvenness": { "type": "number" },
+        "totalReads": { "type": "integer" },
+        "classifiedReads": { "type": "integer" },
+        "meanGcContent": { "type": "number" },
+        "meanReadLength": { "type": "number" },
+        "dataValidityWarning": { "type": "string", "maxLength": 500 },
+        "taxaCount": { "type": "integer" },
+        "supabaseResultId": { "type": "string", "maxLength": 128 },
+        "aiInterpretation": { "type": "string", "maxLength": 6000 },
+        "taxaAssignments": { "type": "array" },
+        "taxonomicSummary": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["resultId", "analysisId", "datasetId", "userId", "datasetName", "analysisType", "pipelineMode", "referenceDatabase", "disclaimer", "speciesRichness", "shannonIndex", "simpsonIndex", "pielouEvenness", "totalReads", "classifiedReads", "taxaAssignments", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Dataset upload, analysis completion, and system alerts for a user.",
+      "type": "object",
+      "properties": {
+        "notificationId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "type": { "type": "string", "enum": ["upload", "analysis", "report", "system"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["notificationId", "userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Immutable user and administrative audit trail.",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorRole": { "type": "string", "enum": ["user", "admin"] },
+        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "details": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["logId", "userId", "actorRole", "action", "details", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Exported scientific report metadata with controlled sharing.",
+      "type": "object",
+      "properties": {
+        "reportId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "analysisId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "datasetId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "resultId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "pipelineMode": { "type": "string", "enum": ["reference-pipeline", "demonstration-mode"] },
+        "isShared": { "type": "boolean" },
+        "shareCode": { "type": "string", "maxLength": 64 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reportId", "userId", "analysisId", "datasetId", "resultId", "title", "pipelineMode", "isShared", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Private user account profiles and roles (isolated to owner or admin)."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminGrant" },
+      "description": "Explicit administrator privilege registry."
+    },
+    "/datasets/{datasetId}": {
+      "schema": { "$ref": "#/entities/Dataset" },
+      "description": "User eDNA dataset metadata linked to Supabase Storage."
+    },
+    "/analyses/{analysisId}": {
+      "schema": { "$ref": "#/entities/Analysis" },
+      "description": "User bioinformatics analysis job records."
+    },
+    "/results/{resultId}": {
+      "schema": { "$ref": "#/entities/AnalysisResult" },
+      "description": "Completed taxonomic assignments and biodiversity assessment results."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "User dataset and analysis notifications."
+    },
+    "/activity_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Immutable account and admin activity logs."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/Report" },
+      "description": "Generated scientific reports with controlled sharing access."
+    }
+  }
+}

@@ -1,0 +1,444 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'kritikaanoushka@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll([
+          'uid', 'fullName', 'email', 'institution', 'country',
+          'researchInterest', 'userCategory', 'role', 'accountStatus',
+          'notificationsEnabled', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'fullName', 'email', 'institution', 'country',
+          'researchInterest', 'userCategory', 'role', 'accountStatus',
+          'photoUrl', 'notificationsEnabled', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.institution is string && data.institution.size() <= 200
+        && data.country is string && data.country.size() <= 100
+        && data.researchInterest is string && data.researchInterest.size() <= 200
+        && data.userCategory in ['Student', 'Research Scholar', 'Environmental Scientist', 'Researcher', 'General User']
+        && data.role in ['user', 'admin']
+        && data.accountStatus in ['active', 'deactivated']
+        && data.notificationsEnabled is bool
+        && (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500))
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidAdminGrant(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedBy', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedBy', 'createdAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidDataset(data) {
+      return data.keys().hasAll([
+          'datasetId', 'userId', 'datasetName', 'sampleId', 'fileName',
+          'fileFormat', 'fileSizeBytes', 'sequenceCount', 'sampleType',
+          'collectionLocation', 'collectionDate', 'storagePath',
+          'supabaseDatasetId', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'datasetId', 'userId', 'datasetName', 'sampleId', 'fileName',
+          'fileFormat', 'fileSizeBytes', 'sequenceCount', 'sampleType',
+          'collectionLocation', 'collectionDate', 'environmentalDescription',
+          'notes', 'storagePath', 'supabaseDatasetId', 'previewSnippet',
+          'status', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.datasetId)
+        && isValidId(data.userId)
+        && data.datasetName is string && data.datasetName.size() >= 1 && data.datasetName.size() <= 160
+        && data.sampleId is string && data.sampleId.size() >= 1 && data.sampleId.size() <= 80
+        && data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 255
+        && data.fileFormat in ['FASTA', 'FASTQ', 'CSV', 'TSV', 'TXT']
+        && data.fileSizeBytes is int && data.fileSizeBytes >= 0 && data.fileSizeBytes <= 26214400
+        && data.sequenceCount is int && data.sequenceCount >= 0 && data.sequenceCount <= 5000000
+        && data.sampleType in ['Freshwater', 'Marine Water', 'Soil', 'Sediment', 'Air', 'Other']
+        && data.collectionLocation is string && data.collectionLocation.size() >= 1 && data.collectionLocation.size() <= 200
+        && data.collectionDate is string && data.collectionDate.size() <= 40
+        && (!('environmentalDescription' in data) || (data.environmentalDescription is string && data.environmentalDescription.size() <= 1000))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && data.storagePath is string && data.storagePath.size() >= 1 && data.storagePath.size() <= 400
+        && data.supabaseDatasetId is string && data.supabaseDatasetId.size() >= 1 && data.supabaseDatasetId.size() <= 128
+        && (!('previewSnippet' in data) || (data.previewSnippet is string && data.previewSnippet.size() <= 2000))
+        && data.status in ['uploaded', 'processing', 'analysed', 'failed']
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidAnalysis(data) {
+      return data.keys().hasAll([
+          'analysisId', 'datasetId', 'userId', 'datasetName', 'analysisType',
+          'referenceDatabase', 'minSimilarity', 'maxEValue', 'minQueryCoverage',
+          'pipelineMode', 'status', 'progress', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'analysisId', 'datasetId', 'userId', 'datasetName', 'analysisType',
+          'referenceDatabase', 'minSimilarity', 'maxEValue', 'minQueryCoverage',
+          'pipelineMode', 'status', 'progress', 'resultId', 'errorMessage',
+          'createdAt', 'completedAt', 'updatedAt'
+        ])
+        && isValidId(data.analysisId)
+        && isValidId(data.datasetId)
+        && isValidId(data.userId)
+        && data.datasetName is string && data.datasetName.size() >= 1 && data.datasetName.size() <= 160
+        && data.analysisType in [
+          'Taxonomic Identification',
+          'Species Diversity Assessment',
+          'Taxonomic Composition Analysis',
+          'Species Richness Analysis',
+          'Biodiversity Comparison',
+          'Sequence Quality Assessment'
+        ]
+        && data.referenceDatabase in ['NCBI BLAST / Taxonomy', 'SILVA rRNA', 'MIDORI Mitochondrial', 'Multi-Reference']
+        && (data.minSimilarity is int || data.minSimilarity is float) && data.minSimilarity >= 50 && data.minSimilarity <= 100
+        && data.maxEValue is string && data.maxEValue.size() >= 1 && data.maxEValue.size() <= 32
+        && (data.minQueryCoverage is int || data.minQueryCoverage is float) && data.minQueryCoverage >= 10 && data.minQueryCoverage <= 100
+        && data.pipelineMode in ['reference-pipeline', 'demonstration-mode']
+        && data.status in ['pending', 'processing', 'completed', 'failed']
+        && data.progress is int && data.progress >= 0 && data.progress <= 100
+        && (!('resultId' in data) || (data.resultId is string && data.resultId.size() <= 128))
+        && (!('errorMessage' in data) || (data.errorMessage is string && data.errorMessage.size() <= 500))
+        && data.createdAt is timestamp
+        && (!('completedAt' in data) || data.completedAt is timestamp || data.completedAt == null)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidResult(data) {
+      return data.keys().hasAll([
+          'resultId', 'analysisId', 'datasetId', 'userId', 'datasetName',
+          'analysisType', 'pipelineMode', 'referenceDatabase', 'disclaimer',
+          'speciesRichness', 'shannonIndex', 'simpsonIndex', 'pielouEvenness',
+          'totalReads', 'classifiedReads', 'taxaAssignments', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'resultId', 'analysisId', 'datasetId', 'userId', 'datasetName',
+          'analysisType', 'pipelineMode', 'referenceDatabase', 'disclaimer',
+          'speciesRichness', 'shannonIndex', 'simpsonIndex', 'pielouEvenness',
+          'totalReads', 'classifiedReads', 'meanGcContent', 'meanReadLength',
+          'dataValidityWarning', 'taxaCount', 'supabaseResultId',
+          'aiInterpretation', 'taxaAssignments', 'taxonomicSummary',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.resultId)
+        && isValidId(data.analysisId)
+        && isValidId(data.datasetId)
+        && isValidId(data.userId)
+        && data.datasetName is string && data.datasetName.size() >= 1 && data.datasetName.size() <= 160
+        && data.analysisType is string && data.analysisType.size() >= 1 && data.analysisType.size() <= 100
+        && data.pipelineMode in ['reference-pipeline', 'demonstration-mode']
+        && data.referenceDatabase is string && data.referenceDatabase.size() >= 1 && data.referenceDatabase.size() <= 100
+        && data.disclaimer is string && data.disclaimer.size() >= 1 && data.disclaimer.size() <= 800
+        && data.speciesRichness is int && data.speciesRichness >= 0
+        && (data.shannonIndex is int || data.shannonIndex is float)
+        && (data.simpsonIndex is int || data.simpsonIndex is float)
+        && (data.pielouEvenness is int || data.pielouEvenness is float)
+        && data.totalReads is int && data.totalReads >= 0
+        && data.classifiedReads is int && data.classifiedReads >= 0
+        && (!('meanGcContent' in data) || data.meanGcContent is int || data.meanGcContent is float)
+        && (!('meanReadLength' in data) || data.meanReadLength is int || data.meanReadLength is float)
+        && (!('dataValidityWarning' in data) || (data.dataValidityWarning is string && data.dataValidityWarning.size() <= 500))
+        && (!('taxaCount' in data) || data.taxaCount is int)
+        && (!('supabaseResultId' in data) || (data.supabaseResultId is string && data.supabaseResultId.size() <= 128))
+        && (!('aiInterpretation' in data) || (data.aiInterpretation is string && data.aiInterpretation.size() <= 6000))
+        && data.taxaAssignments is list && data.taxaAssignments.size() <= 200
+        && (data.taxaAssignments.size() == 0 || data.taxaAssignments[0] is map)
+        && (!('taxonomicSummary' in data) || (data.taxonomicSummary is list && data.taxonomicSummary.size() <= 100 && (data.taxonomicSummary.size() == 0 || data.taxonomicSummary[0] is map)))
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['notificationId', 'userId', 'title', 'message', 'type', 'read', 'createdAt'])
+        && data.keys().hasOnly(['notificationId', 'userId', 'title', 'message', 'type', 'read', 'createdAt', 'updatedAt'])
+        && isValidId(data.notificationId)
+        && isValidId(data.userId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 500
+        && data.type in ['upload', 'analysis', 'report', 'system']
+        && data.read is bool
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['logId', 'userId', 'actorRole', 'action', 'details', 'createdAt'])
+        && data.keys().hasOnly(['logId', 'userId', 'actorRole', 'action', 'details', 'createdAt'])
+        && isValidId(data.logId)
+        && isValidId(data.userId)
+        && data.actorRole in ['user', 'admin']
+        && data.action is string && data.action.size() >= 1 && data.action.size() <= 120
+        && data.details is string && data.details.size() <= 600
+        && data.createdAt is timestamp;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['reportId', 'userId', 'analysisId', 'datasetId', 'resultId', 'title', 'pipelineMode', 'isShared', 'createdAt'])
+        && data.keys().hasOnly(['reportId', 'userId', 'analysisId', 'datasetId', 'resultId', 'title', 'pipelineMode', 'isShared', 'shareCode', 'notes', 'createdAt', 'updatedAt'])
+        && isValidId(data.reportId)
+        && isValidId(data.userId)
+        && isValidId(data.analysisId)
+        && isValidId(data.datasetId)
+        && isValidId(data.resultId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.pipelineMode in ['reference-pipeline', 'demonstration-mode']
+        && data.isShared is bool
+        && (!('shareCode' in data) || (data.shareCode is string && data.shareCode.size() <= 64))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000))
+        && data.createdAt is timestamp
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Collection: users (PII isolated to owner or admin)
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isVerified()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUser(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().role == 'user'
+        && incoming().accountStatus == 'active'
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            request.auth.uid == userId
+            && incoming().role == existing().role
+            && incoming().accountStatus == existing().accountStatus
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'fullName', 'institution', 'country', 'researchInterest',
+              'userCategory', 'photoUrl', 'notificationsEnabled', 'updatedAt'
+            ])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // Collection: admins
+    match /admins/{adminUid} {
+      allow get: if isVerified() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update: if isBootstrappedAdmin() && isValidId(adminUid) && isValidAdminGrant(incoming());
+      allow delete: if isBootstrappedAdmin() && isValidId(adminUid);
+    }
+
+    // Collection: datasets
+    match /datasets/{datasetId} {
+      allow get: if isVerified() && isValidId(datasetId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(datasetId)
+        && isValidDataset(incoming())
+        && incoming().datasetId == datasetId
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(datasetId)
+        && isValidDataset(incoming())
+        && incoming().datasetId == existing().datasetId
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'datasetName', 'sampleId', 'collectionLocation', 'collectionDate',
+              'sampleType', 'environmentalDescription', 'notes', 'status', 'updatedAt'
+            ])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isVerified() && isValidId(datasetId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Collection: analyses
+    match /analyses/{analysisId} {
+      allow get: if isVerified() && isValidId(analysisId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(analysisId)
+        && isValidAnalysis(incoming())
+        && incoming().analysisId == analysisId
+        && incoming().userId == request.auth.uid
+        && exists(/databases/$(database)/documents/datasets/$(incoming().datasetId))
+        && get(/databases/$(database)/documents/datasets/$(incoming().datasetId)).data.userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(analysisId)
+        && isValidAnalysis(incoming())
+        && incoming().analysisId == existing().analysisId
+        && incoming().datasetId == existing().datasetId
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            existing().userId == request.auth.uid
+            && existing().status != 'completed'
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'status', 'progress', 'completedAt', 'resultId', 'errorMessage', 'pipelineMode', 'updatedAt'
+            ])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isVerified() && isValidId(analysisId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Collection: results
+    match /results/{resultId} {
+      allow get: if isVerified() && isValidId(resultId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(resultId)
+        && isValidResult(incoming())
+        && incoming().resultId == resultId
+        && incoming().userId == request.auth.uid
+        && exists(/databases/$(database)/documents/analyses/$(incoming().analysisId))
+        && get(/databases/$(database)/documents/analyses/$(incoming().analysisId)).data.userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(resultId)
+        && isValidResult(incoming())
+        && incoming().resultId == existing().resultId
+        && incoming().analysisId == existing().analysisId
+        && incoming().datasetId == existing().datasetId
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['aiInterpretation', 'updatedAt'])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isVerified() && isValidId(resultId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Collection: notifications
+    match /notifications/{notificationId} {
+      allow get: if isVerified() && isValidId(notificationId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().notificationId == notificationId
+        && (incoming().userId == request.auth.uid || isAdmin())
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().notificationId == existing().notificationId
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt'])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isVerified() && isValidId(notificationId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Collection: activity_logs (Immutable audit trail)
+    match /activity_logs/{logId} {
+      allow get: if isVerified() && isValidId(logId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(logId)
+        && isValidActivityLog(incoming())
+        && incoming().logId == logId
+        && (incoming().userId == request.auth.uid || isAdmin())
+        && (incoming().actorRole == 'user' || isAdmin())
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(logId);
+    }
+
+    // Collection: reports (Controlled sharing supported)
+    match /reports/{reportId} {
+      allow get: if isVerified() && isValidId(reportId) && (
+        existing().userId == request.auth.uid
+        || existing().isShared == true
+        || isAdmin()
+      );
+      allow list: if isVerified() && (resource.data.userId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerified()
+        && isValidId(reportId)
+        && isValidReport(incoming())
+        && incoming().reportId == reportId
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(reportId)
+        && isValidReport(incoming())
+        && incoming().reportId == existing().reportId
+        && incoming().userId == existing().userId
+        && incoming().analysisId == existing().analysisId
+        && incoming().datasetId == existing().datasetId
+        && incoming().resultId == existing().resultId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin()
+          || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'isShared', 'shareCode', 'notes', 'updatedAt'])
+            && incoming().updatedAt == request.time
+          )
+        );
+      allow delete: if isVerified() && isValidId(reportId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+  }
+}
